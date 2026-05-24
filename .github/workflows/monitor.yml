@@ -1,0 +1,76 @@
+name: 🔔 Monitor Absensi POLBAN
+
+on:
+  schedule:
+    # Cek setiap 5 menit pada jam 06:00–16:00 WIB (UTC+7 = UTC-7jam)
+    # Artinya: jam 23:00–09:00 UTC = 06:00–16:00 WIB
+    # Gunakan https://crontab.guru untuk mengatur jadwal
+    - cron: '*/5 23-23,0-9 * * 1-6'  # Senin-Sabtu, 06:00-16:00 WIB
+
+  # Izinkan jalan manual dari tab Actions di GitHub
+  workflow_dispatch:
+
+jobs:
+  check-absensi:
+    name: Cek Status Absensi
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      # ----------------------------------------------------------------
+      # 1. Checkout kode dari repository
+      # ----------------------------------------------------------------
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------------
+      # 2. Setup Python
+      # ----------------------------------------------------------------
+      - name: 🐍 Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      # ----------------------------------------------------------------
+      # 3. Install dependensi
+      # ----------------------------------------------------------------
+      - name: 📦 Install Dependensi
+        run: pip install -r requirements.txt
+
+      # ----------------------------------------------------------------
+      # 4. Restore state cache (untuk anti-spam antar run)
+      # State di-cache per hari — reset otomatis setiap hari baru
+      # ----------------------------------------------------------------
+      - name: 💾 Restore State Cache
+        uses: actions/cache@v4
+        with:
+          path: notified_state.json
+          # Key berubah setiap hari → otomatis reset state harian
+          key: attendance-state-${{ github.run_id }}
+          restore-keys: |
+            attendance-state-
+
+      # ----------------------------------------------------------------
+      # 5. Jalankan pengecekan absensi
+      # Semua credential dibaca dari GitHub Secrets
+      # ----------------------------------------------------------------
+      - name: 🔍 Cek Status Absensi
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          COOKIE_AKAD_SESSION: ${{ secrets.COOKIE_AKAD_SESSION }}
+          USER_AGENT: ${{ secrets.USER_AGENT }}
+          LOG_LEVEL: INFO
+          SEND_STARTUP_MESSAGE: "false"
+        run: python check_once.py
+
+      # ----------------------------------------------------------------
+      # 6. Simpan state yang sudah diupdate ke cache
+      # ----------------------------------------------------------------
+      - name: 💾 Save State Cache
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: notified_state.json
+          key: attendance-state-${{ github.run_id }}

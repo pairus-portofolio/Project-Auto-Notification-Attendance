@@ -1,0 +1,19 @@
+# Abaikan file .env agar credential tidak ter-upload ke Git
+.env
+
+# State file absensi (dikelola oleh GitHub Actions cache, bukan Git)
+notified_state.json
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Log file yang di-generate saat runtime
+monitor.log
+
+# Virtual environment
+venv/
+.venv/
+env/
